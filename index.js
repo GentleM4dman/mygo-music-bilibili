@@ -832,10 +832,20 @@ async function wholeFolder(mediaId) {
   return { info: first.info, medias };
 }
 
+// Bilibili leaves some videos out of a page of twenty (deleted, hidden), so the
+// app's offset doesn't say which page comes next: remember it, as search does.
+let likedNext = null; // { folder, next: offset → page }
+
 export async function liked({ offset }) {
   const folder = await defaultFolder();
-  const r = await folderPage(folder.id, Math.floor(offset / 20) + 1);
-  return { tracks: (r.medias || []).map(mediaTrack), more: !!r.has_more };
+  if (!likedNext || offset === 0 || likedNext.folder !== folder.id) likedNext = { folder: folder.id, next: new Map([[0, 1]]) };
+  let pn = likedNext.next.get(offset) ?? Math.floor(offset / 20) + 1;
+  let r;
+  do r = await folderPage(folder.id, pn++);
+  while (!r.medias?.length && r.has_more);
+  const tracks = (r.medias || []).map(mediaTrack);
+  likedNext.next.set(offset + tracks.length, pn);
+  return { tracks, more: !!r.has_more && tracks.length > 0 };
 }
 
 let favoriteIds = null; // { at, folder, bvids }
