@@ -1107,7 +1107,7 @@ let ffmpegPath = null;
 // the same ones the process permission names.
 async function ffmpeg() {
   if (ffmpegPath) return ffmpegPath;
-  for (const path of ["ffmpeg", "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"]) {
+  for (const path of ["ffmpeg", "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "C:\\ProgramData\\chocolatey\\lib\\ffmpeg\\tools\\ffmpeg\\bin\\ffmpeg.exe"]) {
     try {
       const proc = host.spawn(path, ["-version"]);
       proc.closeStdin();
