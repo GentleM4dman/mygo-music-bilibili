@@ -1,7 +1,7 @@
 {
   "id": "bilibili",
   "name": "Bilibili",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "minAppVersion": "0.1.21",
   "main": "index.js",
   "playback": "stream",
