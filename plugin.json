@@ -11,6 +11,8 @@
       "passport.bilibili.com",
       "s.search.bilibili.com",
       "b23.tv",
+      "*.bilivideo.com",
+      "*.bilivideo.cn",
       "*.hdslb.com",
       "aisubtitle.hdslb.com"
     ],

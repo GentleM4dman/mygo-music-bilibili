@@ -3,11 +3,12 @@
 import { readFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { SourceTextModule, createContext } from "node:vm";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 
-const dir = new URL("..", import.meta.url).pathname;
+const dir = fileURLToPath(new URL("..", import.meta.url));
 
 export async function load({ storage = new Map(), onPrompt = () => {}, fetch: fetchImpl = fetch, settings = {}, webSignIn, main } = {}) {
   const locale = JSON.parse(await readFile(join(dir, "locales/zh-CN.json"), "utf8").catch(() => "{}"));
@@ -70,7 +71,7 @@ export async function load({ storage = new Map(), onPrompt = () => {}, fetch: fe
   const source = await readFile(main || join(dir, "index.js"), "utf8");
   const mod = new SourceTextModule(source, {
     identifier: "index.js",
-    context: createContext({ URL, URLSearchParams, TextEncoder, TextDecoder, fetch: fetchImpl, setTimeout, clearTimeout, console, host, structuredClone }),
+    context: createContext({ URL, URLSearchParams, TextEncoder, TextDecoder, AbortController, fetch: fetchImpl, setTimeout, clearTimeout, console, host, structuredClone }),
   });
   await mod.link(() => { throw new Error("plugins import nothing"); });
   await mod.evaluate();

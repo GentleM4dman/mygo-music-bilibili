@@ -1304,7 +1304,9 @@ async function ffmpeg() {
 // AAC-LC, the best for High and one of at most about 132 kbps for Standard; else, as
 // the app decodes no HE-AAC, the best there is, for ffmpeg to decode.
 // Dolby is left out. Mirrors on mcdn hosts are
-// peer-to-peer caches that often stall, so the upos ones go first.
+// peer-to-peer caches that often stall, so the upos ones go first. The base
+// and backup addresses often name one server twice, signed differently, so
+// each host is kept once.
 async function audioOf({ bvid, cid }, quality) {
   const lossless = quality === "lossless";
   const params = { bvid, cid, fnval: lossless ? 4048 : 16, fourk: 0, fnver: 0 };
@@ -1317,10 +1319,18 @@ async function audioOf({ bvid, cid }, quality) {
   }
   const dash = d.dash;
   if (!dash) throw fail("unavailable", t("Bilibili has no audio for this video"));
-  const urls = (a) =>
-    [a.baseUrl || a.base_url, ...(a.backupUrl || a.backup_url || [])]
-      .filter(Boolean)
+  const urls = (a) => {
+    const hosts = new Set();
+    return [a.baseUrl || a.base_url, ...(a.backupUrl || a.backup_url || [])]
+      .filter((url) => {
+        if (!url) return false;
+        const { host } = new URL(url);
+        if (hosts.has(host)) return false;
+        hosts.add(host);
+        return true;
+      })
       .sort((x, y) => /mcdn|szbdyd/.test(x) - /mcdn|szbdyd/.test(y));
+  };
   const flac = dash.flac?.audio;
   if (lossless && flac && (flac.baseUrl || flac.base_url)) return { urls: urls(flac), as: "flac", bandwidth: flac.bandwidth };
   const all = (dash.audio || []).filter((a) => a.baseUrl || a.base_url).sort((a, b) => b.bandwidth - a.bandwidth);
@@ -1383,18 +1393,48 @@ async function serve(url) {
   return `http://127.0.0.1:${port}/`;
 }
 
+// How many mirrors to try for a track, and how long to wait for each.
+const MIRRORS = 3;
+const PROBE_MS = 3000;
+
+// Hosts plugin.json lets the plugin itself reach. Mirrors elsewhere, such as
+// third-party PCDN nodes, can't be probed, so they aren't picked.
+const PROBEABLE = /\.bilivideo\.(com|cn)$/;
+
 // The app fetches FLAC and AAC-LC from Bilibili itself, with the headers its
-// servers want. It takes one address, so it gets the first mirror: upos before
-// mcdn, as audioOf put them.
+// servers want, but takes one address and doesn't move on when it fails. So
+// each mirror is first asked for one byte, in audioOf's order, and the app
+// gets the first that answers; if none does, the first as before.
+// TODO: drop this once MyGo takes a list of addresses and falls back itself.
+async function playableMirror(urls, headers) {
+  const candidates = urls.filter((url) => PROBEABLE.test(new URL(url).hostname)).slice(0, MIRRORS);
+  if (candidates.length < 2) return urls[0];
+  for (const url of candidates) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PROBE_MS);
+    try {
+      const res = await fetch(url, { headers: { ...headers, Range: "bytes=0-0" }, signal: controller.signal });
+      if (res.status === 200 || res.status === 206) return url;
+    } catch {
+      // Unreachable, or too slow: try the next.
+    } finally {
+      clearTimeout(timer);
+      // A server that ignores Range answers 200 with the whole file; stop it.
+      controller.abort();
+    }
+  }
+  return urls[0];
+}
+
 export async function stream({ id, quality }) {
   const where = await locate(id);
   const tier = quality === "standard" ? "standard" : "high";
   const audio = await audioOf(where, quality);
   const headers = { Referer: REFERER, "User-Agent": UA };
-  if (audio.as === "flac") return { url: audio.urls[0], type: "m4a", quality: "lossless", headers };
-  if (audio.as === "m4a") return { url: audio.urls[0], type: "m4a", quality: tier, bitRate: audio.bandwidth, headers };
+  if (audio.as === "flac") return { url: await playableMirror(audio.urls, headers), type: "m4a", quality: "lossless", headers };
+  if (audio.as === "m4a") return { url: await playableMirror(audio.urls, headers), type: "m4a", quality: tier, bitRate: audio.bandwidth, headers };
   let lastError;
-  for (const url of audio.urls.slice(0, 3)) {
+  for (const url of audio.urls.slice(0, MIRRORS)) {
     try {
       return { url: await serve(url), type: "wav", quality: tier, bitRate: audio.bandwidth };
     } catch (e) {

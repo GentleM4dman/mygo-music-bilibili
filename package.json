@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "check": "node --check index.js",
-    "test": "node --experimental-vm-modules tests/signin.mjs && node --experimental-vm-modules tests/lyrics.mjs",
+    "test": "node --experimental-vm-modules tests/signin.mjs && node --experimental-vm-modules tests/lyrics.mjs && node --experimental-vm-modules tests/stream.mjs",
     "test:live": "node --experimental-vm-modules tests/live.mjs && node --experimental-vm-modules tests/paging.mjs",
     "test:signed-in": "node --experimental-vm-modules tests/subtitles.mjs"
   },
