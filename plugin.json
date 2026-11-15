@@ -22,6 +22,14 @@
       "/usr/local/bin/ffmpeg"
     ]
   },
+  "settings": [
+    {
+      "key": "savedOrder",
+      "label": "Saved Collections order",
+      "help": "Folder names, comma-separated, to show first in Saved Collections, in that order. Folders not listed follow in Bilibili's order. Example: 音乐合集, 默认收藏夹",
+      "type": "text"
+    }
+  ],
   "navigation": [
     {
       "builtin": "home"
@@ -34,6 +42,11 @@
     {
       "title": "Favorites",
       "builtin": "liked"
+    },
+    {
+      "title": "Saved Collections",
+      "page": "saved",
+      "icon": "album"
     },
     {
       "title": "Following",
