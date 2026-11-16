@@ -716,6 +716,9 @@ export async function browse({ page }) {
     needAccount();
     return { title: t("Latest Videos"), subtitle: t("From who you follow, newest first"), sections: [{ tracks: await followingVideos(5) }] };
   }
+  if (page === "saved") return savedPage();
+  const folder = /^saved:fav:(\d+)$/.exec(page);
+  if (folder) return savedFolderPage(folder[1]);
   throw fail("unavailable", t("no such page"));
 }
 
@@ -1039,22 +1042,166 @@ export async function playlists() {
   return out;
 }
 
+// Saved Collections: every favorites folder, its videos as albums, so a video
+// of many parts is one card that opens its parts, and the collections you
+// saved, each a card that opens its videos. A folder shows its first page of
+// twenty here, and all of it, up to a thousand, on its own page. Videos that
+// are gone can't be opened and are left out. The folders come in the order
+// the savedOrder setting gives, then the rest as Bilibili lists them.
+const FOLDERS_AT_ONCE = 4;
+
+const day = (s) => (s ? new Date(s * 1000).toISOString().slice(0, 10) : undefined);
+
+function mediaAlbums(medias) {
+  const seen = new Set();
+  const albums = [];
+  let gone = 0;
+  for (const m of medias) {
+    if (m.attr === 9 || m.title === "已失效视频") {
+      gone++;
+      continue;
+    }
+    if (!/^BV/.test(m.bvid || "") || (m.type && m.type !== 2) || seen.has(m.bvid)) continue;
+    seen.add(m.bvid);
+    albums.push({ id: m.bvid, name: clean(m.title) || m.bvid, imageUrl: image(m.cover), artists: [artistOf(m.upper?.mid, m.upper?.name)], released: day(m.pubtime) });
+  }
+  return { albums, gone };
+}
+
+const noAlbums = (gone) => (gone ? t("Every video in this folder is gone") : t("This folder is empty"));
+
+// The folders, those the setting names first, in its order: names (or ids)
+// between commas. All folders of a name go where it's named, as they were
+// among themselves; a name named again, or not found, changes nothing.
+function inSavedOrder(lists, setting) {
+  const key = (s) => String(s ?? "").normalize("NFC").trim().toLowerCase();
+  const wanted = String(setting || "").split(/[,，、\n]/).map(key).filter(Boolean);
+  const placed = new Set();
+  const first = [];
+  for (const w of wanted) {
+    const named = lists.filter((f) => !placed.has(f) && key(clean(f.title)) === w);
+    const found = named.length ? named : lists.filter((f) => !placed.has(f) && String(f.id) === w);
+    for (const f of found) placed.add(f), first.push(f);
+  }
+  return [...first, ...lists.filter((f) => !placed.has(f))];
+}
+
+async function savedPage() {
+  const { created, collected } = await folders();
+  const lists = inSavedOrder([...created, ...collected.filter((c) => c.type !== 21)], host.setting("savedOrder"));
+  const sections = await inTurn(lists, FOLDERS_AT_ONCE, async (f) => {
+    const sec = { title: clean(f.title), morePage: `saved:fav:${f.id}` };
+    if (f.media_count === 0) return { ...sec, empty: t("This folder is empty") };
+    try {
+      const d = await folderPage(f.id, 1);
+      const { albums, gone } = mediaAlbums(d.medias || []);
+      const more = !!d.has_more || (d.info?.media_count ?? f.media_count ?? 0) > (d.medias?.length || 0);
+      return { ...sec, albums, morePage: more ? sec.morePage : undefined, empty: noAlbums(gone) };
+    } catch (e) {
+      console.warn(`folder ${f.id}: ${e.message}`);
+      return { ...sec, empty: t("Couldn't load this folder: try again later") };
+    }
+  });
+  const seasons = collected
+    .filter((c) => c.type === 21 && c.upper?.mid)
+    .map((c) => ({ id: `season:${c.upper.mid}:${c.id}`, name: clean(c.title), imageUrl: image(c.cover), artists: [artistOf(c.upper.mid, c.upper.name)], released: day(c.ctime) }));
+  if (seasons.length) sections.push({ title: t("Subscribed Collections"), albums: seasons });
+  if (!sections.length) sections.push({ empty: t("You have no favorites folder on Bilibili") });
+  return { title: t("Saved Collections"), sections };
+}
+
+async function savedFolderPage(id) {
+  const { info, medias } = await wholeFolder(id);
+  const { albums, gone } = mediaAlbums(medias);
+  return {
+    title: clean(info?.title) || t("Saved Collections"),
+    subtitle: gone ? t("%d videos gone, not shown").replace("%d", gone) : undefined,
+    sections: [{ albums, empty: noAlbums(gone) }],
+  };
+}
+
+// A saved video of many parts is its parts in a playlist, a track for each in
+// their order, as its album lists them, so the playlist plays through them
+// before the next video. A favorites folder says how many parts each video
+// has ("page"); a collection doesn't, but any one of its videos lists the
+// parts of all of them. A video whose parts can't be found out stays one
+// track, as it was, rather than being left out.
+const PARTS_AT_ONCE = 4;
+
+// fn of each item, so many at a time, the answers in the items' order.
+async function inTurn(items, n, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i], i);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, worker));
+  return out;
+}
+
+async function withParts(medias, known = new Map()) {
+  const one = async (m) => {
+    const tr = mediaTrack(m);
+    if (tr.unavailable || !/^BV/.test(m.bvid || "") || Number(m.page) === 1 || (m.type && m.type !== 2)) return [tr];
+    const pages = known.get(m.bvid);
+    if (pages) return pages.length > 1 ? partsOf({ bvid: m.bvid, title: m.title, pic: m.cover, owner: m.upper, pages }) : [tr];
+    try {
+      const parts = partsOf(await view(m.bvid));
+      return parts.length > 1 ? parts : [tr];
+    } catch (e) {
+      console.warn(`parts of ${m.bvid}: ${e.message}`);
+      return [tr];
+    }
+  };
+  return (await inTurn(medias, PARTS_AT_ONCE, one)).flat();
+}
+
+// A saved collection's videos, in its order, up to upTo of them. Bilibili
+// counts its videos, not their parts.
+async function seasonMedias(sid, upTo = Infinity) {
+  const medias = [];
+  let info = null;
+  for (let pn = 1; pn <= 50; pn++) {
+    const d = await get("/x/space/fav/season/list", { season_id: sid, pn, ps: 20 });
+    info ||= d.info;
+    medias.push(...(d.medias || []));
+    if (!d.medias?.length || medias.length >= (d.info?.media_count || 0) || medias.length >= upTo) break;
+  }
+  const total = Math.max(info?.media_count || 0, medias.length);
+  return { info, medias: medias.slice(0, upTo), more: total > upTo };
+}
+
+// The parts of every video of a collection, by bvid, from one of its videos.
+async function seasonParts(seasonId, medias) {
+  const known = new Map();
+  const first = medias.find((m) => /^BV/.test(m.bvid || ""));
+  if (!first) return known;
+  try {
+    const season = (await view(first.bvid)).ugc_season;
+    if (String(season?.id) !== String(seasonId)) return known;
+    for (const s of season.sections || []) {
+      for (const ep of s.episodes || []) if (ep.bvid && ep.pages?.length) known.set(ep.bvid, ep.pages);
+    }
+  } catch (e) {
+    console.warn(`parts of collection ${seasonId}: ${e.message}`);
+  }
+  return known;
+}
+
 async function getPlaylist({ id }) {
   const [kind, num] = String(id).split(":");
   if (kind === "fav") {
     const { info, medias } = await wholeFolder(num);
     const mine = String(info?.upper?.mid) === myMid();
-    return { ...folderPlaylist({ ...info, media_count: medias.length }, mine), description: info?.intro, tracks: medias.map(mediaTrack) };
+    const tracks = await withParts(medias);
+    return { ...folderPlaylist({ ...info, media_count: tracks.length }, mine), description: info?.intro, tracks };
   }
   if (kind === "season") {
-    const tracks = [];
-    let info = null;
-    for (let pn = 1; pn <= 50; pn++) {
-      const d = await get("/x/space/fav/season/list", { season_id: num, pn, ps: 20 });
-      info ||= d.info;
-      tracks.push(...(d.medias || []).map(mediaTrack));
-      if (!d.medias?.length || tracks.length >= (d.info?.media_count || 0)) break;
-    }
+    const { info, medias } = await seasonMedias(num);
+    const tracks = await withParts(medias, await seasonParts(num, medias));
     return {
       id,
       name: info?.title || "",

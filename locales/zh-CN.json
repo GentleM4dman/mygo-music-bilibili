@@ -54,5 +54,13 @@
   "Nothing new from who you follow": "你关注的 UP 主最近没有发视频",
   "You don't follow anyone yet": "你还没有关注任何 UP 主",
   "Unknown collection": "未知合集",
-  "This collection is empty": "这个合集是空的"
+  "This collection is empty": "这个合集是空的",
+  "Saved Collections": "收藏合集",
+  "Subscribed Collections": "订阅的合集",
+  "This folder is empty": "这个收藏夹是空的",
+  "Every video in this folder is gone": "这个收藏夹里的视频都已失效",
+  "Couldn't load this folder: try again later": "这个收藏夹没能载入，请稍后再试",
+  "%d videos gone, not shown": "%d 个已失效视频未显示",
+  "Saved Collections order": "收藏合集顺序",
+  "Folder names, comma-separated, to show first in Saved Collections, in that order. Folders not listed follow in Bilibili's order. Example: 音乐合集, 默认收藏夹": "填收藏夹名称，用逗号隔开，这些收藏夹会按填写顺序排在「收藏合集」最前面；没填的收藏夹按 B 站原顺序排在后面，「订阅的合集」始终在最后。也可以填收藏夹 ID。留空即 B 站原顺序。例：音乐合集, 默认收藏夹"
 }
