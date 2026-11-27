@@ -183,6 +183,187 @@ function image(url, size = 480) {
   return u;
 }
 
+// ---------------------------------------------------------------------------
+// Shitou audiobook directory: its WordPress pages list books; each article
+// embeds a Bilibili player. The directory is browsed here, while playback
+// still goes through this plugin's normal Bilibili stream path.
+
+const SHITOU_BASE = "https://www.shitou.club";
+const SHITOU_HOME = "/list/cls/10042.html";
+const shitouCache = new Map();
+const SHITOU_TTL = 5 * 60 * 1000;
+
+function shitouUrl(path) {
+  const u = String(path || "").trim().replace(/\\\//g, "/");
+  if (!u) return "";
+  if (/^https?:/i.test(u)) return u;
+  if (u.startsWith("//")) return `https:${u}`;
+  return u.startsWith("/") ? `${SHITOU_BASE}${u}` : u;
+}
+
+async function shitouText(path) {
+  const url = shitouUrl(path);
+  const cached = shitouCache.get(url);
+  if (cached && Date.now() - cached.at < SHITOU_TTL) return cached.text;
+  let last = "";
+  for (let i = 0; i < 3; i++) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": UA,
+          Referer: `${SHITOU_BASE}/`,
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "zh-CN,zh;q=0.9",
+        },
+      });
+      const text = await res.text();
+      if (res.status >= 500 || text.length < 200) {
+        last = `HTTP ${res.status}`;
+        await sleep(1500 * (i + 1));
+        continue;
+      }
+      if (!res.ok) throw fail("unavailable", `HTTP ${res.status}`);
+      shitouCache.set(url, { text, at: Date.now() });
+      if (shitouCache.size > 40) {
+        const oldest = [...shitouCache.entries()].sort((a, b) => a[1].at - b[1].at)[0];
+        if (oldest) shitouCache.delete(oldest[0]);
+      }
+      return text;
+    } catch (e) {
+      if (e?.code) throw e;
+      last = e?.message || String(e);
+      await sleep(1500 * (i + 1));
+    }
+  }
+  throw fail("unavailable", last || t("Couldn't load audiobook directory: try again later"));
+}
+
+function shitouAuthor(title) {
+  return clean((/作者[：:]\s*([^）)】]+)/.exec(title) || [])[1] || "");
+}
+
+function shitouCards(html, limit = 40) {
+  const out = [];
+  const seen = new Set();
+  const source = String(html || "");
+  for (const m of source.matchAll(/<a\s+href="\/p\/([0-9]+)\.html"[^>]*title="([^"]*)"/g)) {
+    const id = m[1];
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const title = clean(m[2]);
+    if (!title) continue;
+    const around = source.slice(Math.max(0, m.index - 600), Math.min(source.length, m.index + 900));
+    const coverRaw =
+      (/data-original="([^"]+)"/.exec(around) || [])[1] || (/<img[^>]+src="([^"]+)"/.exec(around) || [])[1] || "";
+    const cat = clean((/<a href="\/list\/cls\/[0-9]+\.html"[^>]*>([^<]*)<\/a>/.exec(around) || [])[1] || "");
+    const author = shitouAuthor(title);
+    const name = title.replace(/（作者：[^）]*）/g, "").replace(/\s+/g, " ").trim();
+    out.push({ id, name, cover: shitouUrl(coverRaw), cat, author });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+function shitouCats(html) {
+  const out = new Map();
+  for (const m of String(html || "").matchAll(/<a href="\/list\/cls\/([0-9]+)\.html"[^>]*>([^<]{1,20})<\/a>/g)) {
+    const id = m[1];
+    const name = clean(m[2]);
+    if (name && !out.has(id)) out.set(id, name);
+  }
+  return [...out.entries()].map(([id, name]) => ({ id, name }));
+}
+
+function shitouAlbumInfo(html, id) {
+  const titleTag = clean((/<title>([\s\S]*?)<\/title>/i.exec(html) || [])[1] || "");
+  const book = titleTag.match(/《([^》]+)》/)?.[1] || clean(titleTag.split(" - ")[0]);
+  const author = shitouAuthor(titleTag);
+  const cat = clean((/【([^】]+)】/.exec(titleTag) || [])[1] || "");
+  const bvid =
+    (/player\.bilibili\.com\/player\.html\?[^"']*bvid=([A-Za-z0-9]+)/.exec(html) || [])[1] ||
+    (/bvid=([A-Za-z0-9]+)/.exec(html) || [])[1] ||
+    "";
+  const desc = clean((/<meta name="description" content="([^"]*)"/.exec(html) || [])[1] || "");
+  let cover = "";
+  for (const m of String(html).matchAll(/data-original="([^"]+)"/g)) {
+    const u = shitouUrl(m[1]);
+    if (/hdslb\.com|xmcdn\.com/i.test(u)) {
+      cover = u.split("@")[0];
+      break;
+    }
+  }
+  return { id, title: clean(book), author, cat, bvid, desc, cover };
+}
+
+function shitouCard(c) {
+  return {
+    id: `shitou:${c.id}`,
+    name: c.name,
+    imageUrl: image(c.cover),
+    artists: c.author ? [{ name: c.author }] : [],
+    description: c.cat || undefined,
+  };
+}
+
+function shitouCategoryLink(c) {
+  return { title: c.name, page: `cat:${c.id}:1` };
+}
+
+async function shitouHome() {
+  const html = await shitouText(SHITOU_HOME);
+  const cards = shitouCards(html, 40);
+  const cats = shitouCats(html);
+  const sections = [];
+  if (cards.length) sections.push({ title: t("Latest Audiobooks"), albums: cards.map(shitouCard) });
+  else sections.push({ title: t("Latest Audiobooks"), albums: [], empty: t("No audiobooks yet") });
+  if (cats.length) sections.push({ title: t("Categories"), links: cats.map(shitouCategoryLink) });
+  else sections.push({ title: t("Categories"), links: [], empty: t("No categories yet") });
+  return {
+    title: t("Audiobooks"),
+    subtitle: t("Audio books listed by Shitou; playback comes from Bilibili"),
+    sections,
+  };
+}
+
+async function shitouCategory(tid, pageNo) {
+  const html = await shitouText(`/list/cls/${tid}.html` + (pageNo > 1 ? `?page=${pageNo}` : ""));
+  const cards = shitouCards(html, 40);
+  const cats = shitouCats(html);
+  const term =
+    clean((/<h1 class="term-title">([^<]*)<\/h1>/.exec(html) || [])[1] || "") ||
+    cats.find((c) => c.id === tid)?.name ||
+    clean(t("Categories"));
+  const links = [];
+  if (cards.length >= 10) links.push({ title: t("Next page"), page: `cat:${tid}:${pageNo + 1}` });
+  for (const c of cats.slice(0, 6)) links.push(shitouCategoryLink(c));
+  return {
+    title: term,
+    subtitle: t("Shitou page %d").replace("%d", String(pageNo)),
+    sections: [
+      { title: term, albums: cards.map(shitouCard), ...(cards.length ? {} : { empty: t("No audiobooks in this category") }) },
+      ...(links.length ? [{ title: t("More"), links }] : []),
+    ],
+  };
+}
+
+async function getShitouAlbum(pid) {
+  const html = await shitouText(`/p/${pid}.html`);
+  const info = shitouAlbumInfo(html, pid);
+  if (!info.bvid) throw fail("unavailable", t("This page has no Bilibili video"));
+  const v = await view(info.bvid);
+  const tracks = partsOf(v);
+  const albumId = `shitou:${pid}`;
+  const album = {
+    id: albumId,
+    name: info.title || clean(v.title),
+    imageUrl: image(info.cover || v.pic),
+    artists: info.author ? [{ name: info.author }] : undefined,
+    description: [info.desc, t("Audiobook from Shitou; Bilibili video %s").replace("%s", info.bvid)].filter(Boolean).join("\n"),
+  };
+  for (const tr of tracks) tr.album = { ...tr.album, id: albumId, name: album.name, imageUrl: album.imageUrl, artists: album.artists };
+  return { album, tracks };
+}
+
 function seconds(v) {
   if (typeof v === "number") return v * 1000;
   if (typeof v !== "string" || !v) return 0;
@@ -717,6 +898,9 @@ export async function browse({ page }) {
     return { title: t("Latest Videos"), subtitle: t("From who you follow, newest first"), sections: [{ tracks: await followingVideos(5) }] };
   }
   if (page === "saved") return savedPage();
+  if (page === "audiobooks") return shitouHome();
+  const shitouCat = /^cat:(\d+):(\d+)$/.exec(page);
+  if (shitouCat) return shitouCategory(shitouCat[1], Number(shitouCat[2]) || 1);
   const folder = /^saved:fav:(\d+)$/.exec(page);
   if (folder) return savedFolderPage(folder[1]);
   throw fail("unavailable", t("no such page"));
@@ -767,6 +951,8 @@ async function followings() {
 // artists (uploaders).
 
 async function getAlbum({ id }) {
+  const shitou = /^shitou:(\d+)$/.exec(id);
+  if (shitou) return getShitouAlbum(shitou[1]);
   const shelf = /^(season|series):(\d+):(\d+)$/.exec(id);
   if (shelf) return getShelf(shelf[1], shelf[2], shelf[3]);
   const v = await view(id);

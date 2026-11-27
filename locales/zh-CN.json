@@ -62,5 +62,18 @@
   "Couldn't load this folder: try again later": "这个收藏夹没能载入，请稍后再试",
   "%d videos gone, not shown": "%d 个已失效视频未显示",
   "Saved Collections order": "收藏合集顺序",
+  "Audiobooks": "有声书",
+  "Latest Audiobooks": "最新有声书",
+  "Categories": "分类",
+  "Next page": "下一页",
+  "More": "更多",
+  "No audiobooks yet": "还没有有声书",
+  "No categories yet": "还没有分类",
+  "No audiobooks in this category": "这个分类里还没有有声书",
+  "Audio books listed by Shitou; playback comes from Bilibili": "目录来自石头听书，播放音轨仍来自 B 站",
+  "Shitou page %d": "石头听书第 %d 页",
+  "This page has no Bilibili video": "这一页没有可播放的 B 站视频",
+  "Couldn't load audiobook directory: try again later": "有声书目录没能载入，请稍后再试",
+  "Audiobook from Shitou; Bilibili video %s": "目录来自石头听书；B 站视频 %s",
   "Folder names, comma-separated, to show first in Saved Collections, in that order. Folders not listed follow in Bilibili's order. Example: 音乐合集, 默认收藏夹": "填收藏夹名称，用逗号隔开，这些收藏夹会按填写顺序排在「收藏合集」最前面；没填的收藏夹按 B 站原顺序排在后面，「订阅的合集」始终在最后。也可以填收藏夹 ID。留空即 B 站原顺序。例：音乐合集, 默认收藏夹"
 }
