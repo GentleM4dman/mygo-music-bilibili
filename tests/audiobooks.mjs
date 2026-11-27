@@ -140,8 +140,24 @@ const locale = JSON.parse(await readFile(new URL("../locales/zh-CN.json", import
   const { api } = await load({ fetch: fetchFor() });
   const home = plain(await api.browse({ page: "audiobooks" }));
   assert.equal(home.title, "有声书");
-  assert.equal(home.sections.length, 1);
-  const [latest] = home.sections;
+  assert.equal(home.sections.length, 3);
+  const [occult, other, latest] = home.sections;
+  assert.equal(occult.title, "灵异 / 悬疑 / 民俗");
+  assert.equal(occult.albums.length, 62);
+  assert.equal(other.title, "其他题材有声书");
+  assert.equal(other.albums.length, 10);
+  assert.deepEqual(occult.albums[0], {
+    id: "BV1yqRYBBEGN",
+    name: "有声书《民调局异闻录》无删减完结，多人小说剧",
+    artists: [{ name: "热播有声书" }],
+    description: "悬疑/灵异",
+  });
+  const catalogIds = [...occult.albums, ...other.albums].map((a) => a.id);
+  for (const skipped of ["BV1upsN6FEGh", "BV1ZF4463E2H", "BV1hqsB6ZEs2"]) {
+    assert.ok(!catalogIds.includes(skipped));
+  }
+
+  assert.equal(latest.title, "石头听书目录");
   assert.equal(latest.albums.length, 12);
   assert.deepEqual(latest.links, [{ title: "下一页", page: "audiobooks:2" }]);
   assert.deepEqual(latest.albums[0], {
@@ -154,6 +170,7 @@ const locale = JSON.parse(await readFile(new URL("../locales/zh-CN.json", import
   assert.ok(!latest.albums.some((a) => a.id === "shitou:2325299"));
 
   const homeNext = plain(await api.browse({ page: "audiobooks:2" }));
+  assert.equal(homeNext.sections.length, 1);
   assert.equal(homeNext.sections[0].albums.length, 2);
   assert.equal(homeNext.sections[0].links, undefined);
   assert.deepEqual(homeNext.sections[0].albums[0], {
