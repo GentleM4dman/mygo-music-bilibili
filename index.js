@@ -322,7 +322,7 @@ async function shitouCategory(tid, pageNo) {
       {
         title: term,
         albums: cards.map(shitouCard),
-        morePage: cards.length >= 10 ? `cat:${tid}:${pageNo + 1}` : undefined,
+        links: cards.length >= 10 ? [{ title: t("Next page"), page: `cat:${tid}:${pageNo + 1}` }] : undefined,
         ...(cards.length ? {} : { empty: t("No audiobooks in this category") }),
       },
     ],

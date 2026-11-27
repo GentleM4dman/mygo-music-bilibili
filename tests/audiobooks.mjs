@@ -34,6 +34,15 @@ const categoryHtml = `
   </div>
 </article>`;
 
+const manyCategoryHtml = `<h1 class="term-title">故事</h1>${Array.from({ length: 10 }, (_, i) => `
+<article class="post">
+  <div class="entry-media">
+    <a href="/p/232523${i}.html" title="《批量书${i}》有声书合集（作者：测试作者）">
+      <img data-original="https://i1.hdslb.com/bfs/archive/b${i}.jpg" />
+    </a>
+  </div>
+</article>`).join("")}`;
+
 const articleHtml = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -72,7 +81,7 @@ function fetchFor(article = articleHtml) {
   return async (url) => {
     const u = new URL(url);
     if (u.pathname === "/list/cls/10042.html") return new Response(homeHtml);
-    if (u.pathname === "/list/cls/10070.html") return new Response(categoryHtml);
+    if (u.pathname === "/list/cls/10070.html") return new Response(u.searchParams.get("page") === "2" ? manyCategoryHtml : categoryHtml);
     if (u.pathname === `/p/${pid}.html`) return new Response(article);
     if (u.pathname === "/x/frontend/finger/spi") return Response.json({ code: 0, data: { b_3: "B3", b_4: "B4" } });
     if (u.pathname === "/x/web-interface/view") {
@@ -117,7 +126,12 @@ const locale = JSON.parse(await readFile(new URL("../locales/zh-CN.json", import
   assert.equal(category.sections[0].albums[0].id, `shitou:${pid}`);
   assert.equal(category.sections[0].links, undefined);
   assert.equal(category.sections[0].morePage, undefined);
-  console.log("PASS audiobooks: cards open the right page without placeholder link cards");
+
+  const next = plain(await api.browse({ page: "cat:10070:2" }));
+  assert.equal(next.sections[0].albums.length, 10);
+  assert.deepEqual(next.sections[0].links, [{ title: "下一页", page: "cat:10070:3" }]);
+  assert.equal(next.sections[0].morePage, undefined);
+  console.log("PASS audiobooks: category pages keep only the next-page link card");
 }
 
 {
