@@ -98,8 +98,10 @@ const locale = JSON.parse(await readFile(new URL("../locales/zh-CN.json", import
   const { api } = await load({ fetch: fetchFor() });
   const home = plain(await api.browse({ page: "audiobooks" }));
   assert.equal(home.title, "有声书");
-  const [latest, cats] = home.sections;
+  assert.equal(home.sections.length, 1);
+  const [latest] = home.sections;
   assert.equal(latest.albums.length, 1);
+  assert.equal(latest.links, undefined);
   assert.deepEqual(latest.albums[0], {
     id: `shitou:${pid}`,
     name: "《测试书》有声书合集",
@@ -107,13 +109,15 @@ const locale = JSON.parse(await readFile(new URL("../locales/zh-CN.json", import
     artists: [{ name: "测试作者" }],
     description: "故事",
   });
-  assert.deepEqual(cats.links, [{ title: "故事", page: "cat:10070:1" }]);
 
   const category = plain(await api.browse({ page: "cat:10070:1" }));
   assert.equal(category.title, "故事");
+  assert.equal(category.sections.length, 1);
   assert.equal(category.sections[0].albums.length, 1);
   assert.equal(category.sections[0].albums[0].id, `shitou:${pid}`);
-  console.log("PASS audiobooks: home cards and category links open the right page");
+  assert.equal(category.sections[0].links, undefined);
+  assert.equal(category.sections[0].morePage, undefined);
+  console.log("PASS audiobooks: cards open the right page without placeholder link cards");
 }
 
 {

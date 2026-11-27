@@ -264,16 +264,6 @@ function shitouCards(html, limit = 40) {
   return out;
 }
 
-function shitouCats(html) {
-  const out = new Map();
-  for (const m of String(html || "").matchAll(/<a href="\/list\/cls\/([0-9]+)\.html"[^>]*>([^<]{1,20})<\/a>/g)) {
-    const id = m[1];
-    const name = clean(m[2]);
-    if (name && !out.has(id)) out.set(id, name);
-  }
-  return [...out.entries()].map(([id, name]) => ({ id, name }));
-}
-
 function shitouAlbumInfo(html, id) {
   const titleTag = clean((/<title>([\s\S]*?)<\/title>/i.exec(html) || [])[1] || "");
   const book = titleTag.match(/《([^》]+)》/)?.[1] || clean(titleTag.split(" - ")[0]);
@@ -305,43 +295,36 @@ function shitouCard(c) {
   };
 }
 
-function shitouCategoryLink(c) {
-  return { title: c.name, page: `cat:${c.id}:1` };
-}
-
 async function shitouHome() {
   const html = await shitouText(SHITOU_HOME);
   const cards = shitouCards(html, 40);
-  const cats = shitouCats(html);
-  const sections = [];
-  if (cards.length) sections.push({ title: t("Latest Audiobooks"), albums: cards.map(shitouCard) });
-  else sections.push({ title: t("Latest Audiobooks"), albums: [], empty: t("No audiobooks yet") });
-  if (cats.length) sections.push({ title: t("Categories"), links: cats.map(shitouCategoryLink) });
-  else sections.push({ title: t("Categories"), links: [], empty: t("No categories yet") });
   return {
     title: t("Audiobooks"),
     subtitle: t("Audio books listed by Shitou; playback comes from Bilibili"),
-    sections,
+    sections: [
+      {
+        title: t("Latest Audiobooks"),
+        albums: cards.map(shitouCard),
+        ...(cards.length ? {} : { empty: t("No audiobooks yet") }),
+      },
+    ],
   };
 }
 
 async function shitouCategory(tid, pageNo) {
   const html = await shitouText(`/list/cls/${tid}.html` + (pageNo > 1 ? `?page=${pageNo}` : ""));
   const cards = shitouCards(html, 40);
-  const cats = shitouCats(html);
-  const term =
-    clean((/<h1 class="term-title">([^<]*)<\/h1>/.exec(html) || [])[1] || "") ||
-    cats.find((c) => c.id === tid)?.name ||
-    clean(t("Categories"));
-  const links = [];
-  if (cards.length >= 10) links.push({ title: t("Next page"), page: `cat:${tid}:${pageNo + 1}` });
-  for (const c of cats.slice(0, 6)) links.push(shitouCategoryLink(c));
+  const term = clean((/<h1 class="term-title">([^<]*)<\/h1>/.exec(html) || [])[1] || "") || t("Audiobooks");
   return {
     title: term,
     subtitle: t("Shitou page %d").replace("%d", String(pageNo)),
     sections: [
-      { title: term, albums: cards.map(shitouCard), ...(cards.length ? {} : { empty: t("No audiobooks in this category") }) },
-      ...(links.length ? [{ title: t("More"), links }] : []),
+      {
+        title: term,
+        albums: cards.map(shitouCard),
+        morePage: cards.length >= 10 ? `cat:${tid}:${pageNo + 1}` : undefined,
+        ...(cards.length ? {} : { empty: t("No audiobooks in this category") }),
+      },
     ],
   };
 }
