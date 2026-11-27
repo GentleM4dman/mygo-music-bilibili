@@ -6,7 +6,7 @@
 
 ## 安装
 
-1. 安装插件：点这个链接 [mygo-music://install-plugin?repo=GentleM4dman/mygo-music-bilibili](mygo-music://install-plugin?repo=GentleM4dman/mygo-music-bilibili)，或在「设置 → 插件 → +」里粘贴 `https://github.com/GentleM4dman/mygo-music-bilibili`。
+1. 安装插件：点这个链接 [mygo-music://install-plugin?repo=hhym/mygo-music-bilibili](mygo-music://install-plugin?repo=hhym/mygo-music-bilibili)，或在「设置 → 插件 → +」里粘贴 `https://github.com/hhym/mygo-music-bilibili`。
 2. 登录：点登录会打开B站自己的登录页，可以用哔哩哔哩 App 扫码，也可以用短信验证码或密码，手机不在身边也能登。
 
 需要 MyGo Music 0.1.21 及以上：从这个版本起 MyGo 能直接播放 B站的音轨（分片 MP4 里的 AAC 和 FLAC），不用另外装什么。
@@ -50,7 +50,7 @@ npm run test:signed-in  # 用 MyGo 里已保存的登录只读地试字幕歌词
 
 Plays the audio of Bilibili videos in [MyGo Music](https://github.com/egoist/mygo-music). For personal listening; not affiliated with Bilibili. It uses the website's own API and may stop working when that changes.
 
-**Install** with [mygo-music://install-plugin?repo=GentleM4dman/mygo-music-bilibili](mygo-music://install-plugin?repo=GentleM4dman/mygo-music-bilibili). Needs MyGo Music 0.1.21 or later, which plays Bilibili's audio (AAC or FLAC in fragmented MP4) itself, with nothing else to install.
+**Install** with [mygo-music://install-plugin?repo=hhym/mygo-music-bilibili](mygo-music://install-plugin?repo=hhym/mygo-music-bilibili). Needs MyGo Music 0.1.21 or later, which plays Bilibili's audio (AAC or FLAC in fragmented MP4) itself, with nothing else to install.
 
 A few videos have only HE-AAC, which MyGo Music doesn't decode yet. Those play through [ffmpeg](https://ffmpeg.org), which decodes them: install it with `brew install ffmpeg` on macOS, `winget install Gyan.FFmpeg` on Windows (then restart MyGo Music), or your package manager on Linux, and in Settings > Plugins allow Bilibili to start programs. It only starts ffmpeg, from the PATH, `/opt/homebrew/bin` or `/usr/local/bin`. Without it, those videos say how to install it.
 
