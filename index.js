@@ -190,6 +190,7 @@ function image(url, size = 480) {
 
 const SHITOU_BASE = "https://www.shitou.club";
 const SHITOU_HOME = "/list/cls/10042.html";
+const SHITOU_PAGE_SIZE = 12;
 const shitouCache = new Map();
 const SHITOU_TTL = 5 * 60 * 1000;
 
@@ -242,17 +243,58 @@ function shitouAuthor(title) {
   return clean((/作者[：:]\s*([^）)】]+)/.exec(title) || [])[1] || "");
 }
 
+function shitouLoadMeta(html) {
+  const attrs = (/\bid="loadMore"([^>]*)>/.exec(String(html || "")) || [])[1] || "";
+  return {
+    modId: (/data-mod-id="([^"]+)"/.exec(attrs) || [])[1] || "",
+    clsId: (/data-cls-id="([^"]+)"/.exec(attrs) || [])[1] || "",
+  };
+}
+
+function shitouApiCard(d) {
+  const title = clean(d?.title || "");
+  const name = title.replace(/（作者：[^）]*）/g, "").replace(/\s+/g, " ").trim();
+  return {
+    id: String(d?.id || ""),
+    name,
+    cover: shitouUrl(d?.img || ""),
+    cat: clean(d?.clsName || ""),
+    author: shitouAuthor(title),
+  };
+}
+
+async function shitouListCards(modId, clsId, pageNo) {
+  const body = query({ modId, clsId, pageNum: pageNo, keyword: "", addUid: "" });
+  const res = await fetch(`${SHITOU_BASE}/api/cms/list`, {
+    method: "POST",
+    headers: {
+      "User-Agent": UA,
+      Referer: `${SHITOU_BASE}${SHITOU_HOME}`,
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      "X-Requested-With": "XMLHttpRequest",
+      Accept: "application/json, text/plain, */*",
+    },
+    body,
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok || json?.code !== 0) throw fail("unavailable", json?.msg || `HTTP ${res.status}`);
+  return Array.isArray(json.data) ? json.data.map(shitouApiCard) : [];
+}
+
 function shitouCards(html, limit = 40) {
   const out = [];
   const seen = new Set();
   const source = String(html || "");
-  for (const m of source.matchAll(/<a\s+href="\/p\/([0-9]+)\.html"[^>]*title="([^"]*)"/g)) {
+  const wrap =
+    /<div class="row posts-wrapper[\s\S]*?>([\s\S]*?)(?:<div class="infinite-scroll-action">|<div class="related-posts">)/.exec(source);
+  const list = wrap ? wrap[1] : source;
+  for (const m of list.matchAll(/<a\s+href="\/p\/([0-9]+)\.html"[^>]*title="([^"]*)"/g)) {
     const id = m[1];
     if (seen.has(id)) continue;
     seen.add(id);
     const title = clean(m[2]);
     if (!title) continue;
-    const around = source.slice(Math.max(0, m.index - 600), Math.min(source.length, m.index + 900));
+    const around = list.slice(Math.max(0, m.index - 600), Math.min(list.length, m.index + 900));
     const coverRaw =
       (/data-original="([^"]+)"/.exec(around) || [])[1] || (/<img[^>]+src="([^"]+)"/.exec(around) || [])[1] || "";
     const cat = clean((/<a href="\/list\/cls\/[0-9]+\.html"[^>]*>([^<]*)<\/a>/.exec(around) || [])[1] || "");
@@ -295,16 +337,25 @@ function shitouCard(c) {
   };
 }
 
-async function shitouHome() {
+async function shitouHome(pageNo = 1) {
   const html = await shitouText(SHITOU_HOME);
-  const cards = shitouCards(html, 40);
+  const meta = shitouLoadMeta(html);
+  const cards =
+    pageNo > 1
+      ? await shitouListCards(meta.modId, meta.clsId || "10042", pageNo)
+      : shitouCards(html, 40);
+  const nextPage = cards.length >= SHITOU_PAGE_SIZE ? `audiobooks:${pageNo + 1}` : undefined;
   return {
     title: t("Audiobooks"),
-    subtitle: t("Audio books listed by Shitou; playback comes from Bilibili"),
+    subtitle:
+      pageNo > 1
+        ? t("Shitou page %d").replace("%d", String(pageNo))
+        : t("Audio books listed by Shitou; playback comes from Bilibili"),
     sections: [
       {
         title: t("Latest Audiobooks"),
         albums: cards.map(shitouCard),
+        links: nextPage ? [{ title: t("Next page"), page: nextPage }] : undefined,
         ...(cards.length ? {} : { empty: t("No audiobooks yet") }),
       },
     ],
@@ -322,7 +373,7 @@ async function shitouCategory(tid, pageNo) {
       {
         title: term,
         albums: cards.map(shitouCard),
-        links: cards.length >= 10 ? [{ title: t("Next page"), page: `cat:${tid}:${pageNo + 1}` }] : undefined,
+        links: cards.length >= SHITOU_PAGE_SIZE ? [{ title: t("Next page"), page: `cat:${tid}:${pageNo + 1}` }] : undefined,
         ...(cards.length ? {} : { empty: t("No audiobooks in this category") }),
       },
     ],
@@ -881,7 +932,9 @@ export async function browse({ page }) {
     return { title: t("Latest Videos"), subtitle: t("From who you follow, newest first"), sections: [{ tracks: await followingVideos(5) }] };
   }
   if (page === "saved") return savedPage();
-  if (page === "audiobooks") return shitouHome();
+  if (page === "audiobooks") return shitouHome(1);
+  const shitouHomePage = /^audiobooks:(\d+)$/.exec(page);
+  if (shitouHomePage) return shitouHome(Number(shitouHomePage[1]) || 1);
   const shitouCat = /^cat:(\d+):(\d+)$/.exec(page);
   if (shitouCat) return shitouCategory(shitouCat[1], Number(shitouCat[2]) || 1);
   const folder = /^saved:fav:(\d+)$/.exec(page);

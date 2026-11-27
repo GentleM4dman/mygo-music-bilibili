@@ -10,19 +10,33 @@ const plain = (x) => JSON.parse(JSON.stringify(x));
 const bvid = "BV1aud000001";
 const pid = "2325223";
 
-const homeHtml = `
+function homeCard(i, id, title, cover, cat) {
+  return `
 <article class="post">
   <div class="entry-media">
-    <a href="/p/${pid}.html" title="《测试书》有声书合集（作者：测试作者）">
-      <img class="lazyload" data-original="//i2.hdslb.com/bfs/archive/a.jpg" />
+    <a href="/p/${id}.html" title="${title}">
+      <img class="lazyload" data-original="${cover}" />
     </a>
   </div>
   <div class="entry-wrapper">
     <span class="meta-category-dot">
-      <a href="/list/cls/10070.html">故事</a>
+      <a href="/list/cls/10070.html">${cat}</a>
     </span>
   </div>
 </article>`;
+}
+
+const homeHtml = `
+<div class="row posts-wrapper scroll">${Array.from({ length: 12 }, (_, i) => {
+  const id = i === 0 ? pid : `232524${i}`;
+  const title = i === 0 ? "《测试书》有声书合集（作者：测试作者）" : `《批量书${i}》有声书合集（作者：测试作者）`;
+  const cover = i === 0 ? "//i2.hdslb.com/bfs/archive/a.jpg" : `https://i1.hdslb.com/bfs/archive/b${i}.jpg`;
+  return homeCard(i, id, title, cover, "故事");
+}).join("")}</div>
+<div class="infinite-scroll-action">
+  <div id="loadMore" data-cls-id="10042" data-mod-id="1003009517" data-page="1"></div>
+</div>
+<div class="related-posts">${homeCard(99, "2325299", "《推荐书》有声书合集", "https://i1.hdslb.com/bfs/archive/rel.jpg", "推荐")}</div>`;
 
 const categoryHtml = `
 <h1 class="term-title">故事</h1>
@@ -34,10 +48,10 @@ const categoryHtml = `
   </div>
 </article>`;
 
-const manyCategoryHtml = `<h1 class="term-title">故事</h1>${Array.from({ length: 10 }, (_, i) => `
+const manyCategoryHtml = `<h1 class="term-title">故事</h1>${Array.from({ length: 12 }, (_, i) => `
 <article class="post">
   <div class="entry-media">
-    <a href="/p/232523${i}.html" title="《批量书${i}》有声书合集（作者：测试作者）">
+    <a href="/p/23253${String(i).padStart(2, "0")}.html" title="《批量书${i}》有声书合集（作者：测试作者）">
       <img data-original="https://i1.hdslb.com/bfs/archive/b${i}.jpg" />
     </a>
   </div>
@@ -77,11 +91,30 @@ const videos = {
   },
 };
 
+const apiPageTwo = [
+  {
+    id: 2326001,
+    img: "https://i1.hdslb.com/bfs/archive/api1.jpg",
+    title: "《接口书1》有声书合集（作者：接口作者）",
+    clsName: "故事",
+  },
+  {
+    id: 2326002,
+    img: "https://i1.hdslb.com/bfs/archive/api2.jpg",
+    title: "《接口书2》有声书合集（作者：接口作者）",
+    clsName: "故事",
+  },
+];
+
 function fetchFor(article = articleHtml) {
-  return async (url) => {
+  return async (url, req = {}) => {
     const u = new URL(url);
     if (u.pathname === "/list/cls/10042.html") return new Response(homeHtml);
     if (u.pathname === "/list/cls/10070.html") return new Response(u.searchParams.get("page") === "2" ? manyCategoryHtml : categoryHtml);
+    if (u.pathname === "/api/cms/list") {
+      const params = new URLSearchParams(req.body || "");
+      return Response.json({ code: 0, msg: "操作成功", data: params.get("pageNum") === "2" ? apiPageTwo : [] });
+    }
     if (u.pathname === `/p/${pid}.html`) return new Response(article);
     if (u.pathname === "/x/frontend/finger/spi") return Response.json({ code: 0, data: { b_3: "B3", b_4: "B4" } });
     if (u.pathname === "/x/web-interface/view") {
@@ -109,13 +142,25 @@ const locale = JSON.parse(await readFile(new URL("../locales/zh-CN.json", import
   assert.equal(home.title, "有声书");
   assert.equal(home.sections.length, 1);
   const [latest] = home.sections;
-  assert.equal(latest.albums.length, 1);
-  assert.equal(latest.links, undefined);
+  assert.equal(latest.albums.length, 12);
+  assert.deepEqual(latest.links, [{ title: "下一页", page: "audiobooks:2" }]);
   assert.deepEqual(latest.albums[0], {
     id: `shitou:${pid}`,
     name: "《测试书》有声书合集",
     imageUrl: "https://i2.hdslb.com/bfs/archive/a.jpg@480w_480h_1c.jpg",
     artists: [{ name: "测试作者" }],
+    description: "故事",
+  });
+  assert.ok(!latest.albums.some((a) => a.id === "shitou:2325299"));
+
+  const homeNext = plain(await api.browse({ page: "audiobooks:2" }));
+  assert.equal(homeNext.sections[0].albums.length, 2);
+  assert.equal(homeNext.sections[0].links, undefined);
+  assert.deepEqual(homeNext.sections[0].albums[0], {
+    id: "shitou:2326001",
+    name: "《接口书1》有声书合集",
+    imageUrl: "https://i1.hdslb.com/bfs/archive/api1.jpg@480w_480h_1c.jpg",
+    artists: [{ name: "接口作者" }],
     description: "故事",
   });
 
@@ -128,10 +173,10 @@ const locale = JSON.parse(await readFile(new URL("../locales/zh-CN.json", import
   assert.equal(category.sections[0].morePage, undefined);
 
   const next = plain(await api.browse({ page: "cat:10070:2" }));
-  assert.equal(next.sections[0].albums.length, 10);
+  assert.equal(next.sections[0].albums.length, 12);
   assert.deepEqual(next.sections[0].links, [{ title: "下一页", page: "cat:10070:3" }]);
   assert.equal(next.sections[0].morePage, undefined);
-  console.log("PASS audiobooks: category pages keep only the next-page link card");
+  console.log("PASS audiobooks: home and category pages keep only the next-page link card");
 }
 
 {
