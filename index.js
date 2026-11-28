@@ -183,6 +183,750 @@ function image(url, size = 480) {
   return u;
 }
 
+// ---------------------------------------------------------------------------
+// Shitou audiobook directory: its WordPress pages list books; each article
+// embeds a Bilibili player. The directory is browsed here, while playback
+// still goes through this plugin's normal Bilibili stream path.
+
+const SHITOU_BASE = "https://www.shitou.club";
+const SHITOU_HOME = "/list/cls/10042.html";
+const SHITOU_PAGE_SIZE = 12;
+
+const AUDIOBOOK_CATALOG = [
+  {
+    "bvid": "BV1yqRYBBEGN",
+    "title": "有声书《民调局异闻录》无删减完结，多人小说剧",
+    "author": "热播有声书",
+    "tag": "悬疑/灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1usz1B3Euu",
+    "title": "有声小说《民调局异闻录》全3部",
+    "author": "小仙听国学",
+    "tag": "悬疑/灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1AyofB2EmZ",
+    "title": "悬疑小说《民调局异闻录+后传+勉传》全集",
+    "author": "朱家小仙",
+    "tag": "悬疑/灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1pByoYJE7n",
+    "title": "有声书《民调局异闻录之勉传》无删减完结 共815集",
+    "author": "游侠听书-收徒",
+    "tag": "悬疑/灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1jmX6YmES7",
+    "title": "民调局异闻录-m【ZH有声书】一个长生不老的男人跨越两千年的故事",
+    "author": "ZH有声-感谢收听",
+    "tag": "悬疑/灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1oWYy6gE2Z",
+    "title": "有声书《民调局异闻录》最终章",
+    "author": "散人听书",
+    "tag": "悬疑/灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1F73YzgELe",
+    "title": "民俗灵异多人有声书《民调局异间录之最终篇章》已完结",
+    "author": "妃雪听小说",
+    "tag": "民俗灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1dPgUzgED5",
+    "title": "有声书《我有一座冒险屋》悬疑/恐怖/探案/多人小说剧",
+    "author": "天空听书",
+    "tag": "悬疑/恐怖",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1A6Vq6mEBW",
+    "title": "有声小说《我有一座冒险屋》无删减全集，悬疑灵异，多人小说剧",
+    "author": "土豆有声书",
+    "tag": "悬疑/灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1vASbYMEgZ",
+    "title": "有声小说/三部曲《我当阴阳先生的那几年》《我当鸟人的那几年》《三途志》(张二狗)经典小说剧",
+    "author": "曾法靈",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1iEX5YrEBy",
+    "title": "天涯论坛神贴灵异事件合集",
+    "author": "小仙听国学",
+    "tag": "灵异合集",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1n5ej6qELr",
+    "title": "已完结【深夜小茶馆·兮香怪谈】有声小说-全集",
+    "author": "电子榨菜FM",
+    "tag": "灵异/怪谈",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1kPQUBvEJq",
+    "title": "台湾灵异事件 375集",
+    "author": "鸽鸽1978",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1A4sY6cE2G",
+    "title": "未删减全集【画怖】无限流强强（双男主）",
+    "author": "我爱看双强_",
+    "tag": "无限流/恐怖悬疑",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1RryVzoE9F",
+    "title": "灵异悬疑多人有声小说《无罪谋杀》全集完结",
+    "author": "仓鼠听书",
+    "tag": "悬疑",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1JP4J6xE5b",
+    "title": "有声书《无罪谋杀》一个医生的高智商犯罪丨高分悬疑小说丨完结",
+    "author": "绵羊有声书",
+    "tag": "悬疑",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1vMMLzrED9",
+    "title": "精品有声书《养鬼为祸》(上)全集",
+    "author": "西瓜听书",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV143yazcE6C",
+    "title": "黯然销魂蛋《今夜哪里有诡》探灵异（完结）",
+    "author": "风的花酒_",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1nwXHYiEqR",
+    "title": "一口气看完《麻衣天相》风水术 算卦占卜测天命",
+    "author": "杏儿追书社",
+    "tag": "风水/灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1AkAhe4ENi",
+    "title": "有声小说《诡域档案》",
+    "author": "听书人小凛",
+    "tag": "悬疑",
+    "group": "A"
+  },
+  {
+    "bvid": "BV12vWqz4E2r",
+    "title": "有声书【民间禁忌杂谈】风水阴阳 民间鬼故事 共1233集",
+    "author": "惊悚电台",
+    "tag": "民间鬼故事",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1ifq5BfEaX",
+    "title": "有声书【未代捉鬼人】灵异 恐怖 悬疑 完本 共390集",
+    "author": "惊悚电台",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1gDQKBPEU4",
+    "title": "【82小时完结】一口气看完《我跑长途遇到的那些邪乎事》",
+    "author": "杏儿追书社",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1NdrNYKE9W",
+    "title": "入殓师灵异录【ZH有声书】",
+    "author": "ZH有声-感谢收听",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1zgwxzbEbA",
+    "title": "民间惊悚灵异鬼故事200个",
+    "author": "小仙听书",
+    "tag": "鬼故事",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1E2WH69EMQ",
+    "title": "奇门遁甲秘术有声书 阴宅阳宅/咒术邪术/九宫命格 民间风水局",
+    "author": "桔子听书",
+    "tag": "风水/灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1nNWZ6bEDR",
+    "title": "恐怖故事合集｜深夜慎入 周建龙 演播",
+    "author": "文廷有声书",
+    "tag": "恐怖",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1XHtz6BEYF",
+    "title": "张震讲鬼故事经典版本 睡前鬼故事《完整版》",
+    "author": "文廷有声书",
+    "tag": "鬼故事",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1imTq6nE6L",
+    "title": "有声剧《张震讲鬼故事》全850集，恐怖灵异鬼故事",
+    "author": "柚子听书",
+    "tag": "鬼故事",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1cZ4y1y796",
+    "title": "【东北灵异档案】有声书 恐怖灵异小说鬼故事",
+    "author": "有声小说大全",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1AEGCzVE95",
+    "title": "有声小说【13路末班车】又名惊魂夜车 惊悚&恐怖&灵异&悬疑",
+    "author": "橙子听书屋",
+    "tag": "惊悚/恐怖",
+    "group": "A"
+  },
+  {
+    "bvid": "BV17EyUzhEpj",
+    "title": "惊悚悬疑【别笑哥抓鬼呢】剥人皮的妖、不肯走的痴鬼，全集",
+    "author": "橙子听书屋",
+    "tag": "惊悚",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1wmKXzXECw",
+    "title": "灵异有声小说《异悚》全集",
+    "author": "散人听书",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1KRhs6hE5p",
+    "title": "《盗墓笔记》全8部1-5 有声书 周建龙 演播 高音质清晰版",
+    "author": "帧藏馆Fly",
+    "tag": "盗墓",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1Hmy5zkEaR",
+    "title": "9.4分无女主都市悬疑有声（女鬼求他帮忙报仇）",
+    "author": "桔子听书",
+    "tag": "都市悬疑",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1UdWf6GEWb",
+    "title": "无限流 副本闯关 理性生存 契约猎杀【多人有声-已完结】",
+    "author": "懒人有声书",
+    "tag": "无限流",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1aK5d62E98",
+    "title": "有声书《捞尸人》全集，起点TOP1霸榜，多人有声剧",
+    "author": "道格有声宝藏",
+    "tag": "悬疑",
+    "group": "A"
+  },
+  {
+    "bvid": "BV11bouBCEtb",
+    "title": "有声书《749局绝密档案》全集，悬疑推理",
+    "author": "道格有声书",
+    "tag": "悬疑",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1qPgA6YE75",
+    "title": "有声小说《我是刑警》无删减完结，悬疑刑侦",
+    "author": "土豆有声书",
+    "tag": "刑侦",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1Ae9ZY5E4x",
+    "title": "灵异悬疑多人有声小说《阴阳鬼术》无删减全集",
+    "author": "文蔚爱听书",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1SQNdeVECR",
+    "title": "2020最受欢迎罪案小说！《凶案密码》第九季全 多人有声小说",
+    "author": "文蔚爱摸鱼",
+    "tag": "罪案",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1vkRAYVE56",
+    "title": "灵异惊悚有声小说《地狱公寓》无删减全集",
+    "author": "文蔚爱摸鱼",
+    "tag": "灵异/惊悚",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1XSh76DEbb",
+    "title": "有声书《最后一个道士》恐怖灵异（完结）多人小说剧",
+    "author": "柚子听书",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1FxXuYaETn",
+    "title": "有声书《阴阳掌门人》无删减完结 共2040集",
+    "author": "游侠听书-收徒",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1CBU7YDEsW",
+    "title": "精品有声书《三尸语》全集",
+    "author": "西瓜听书",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1MRdhBGEk9",
+    "title": "有声书《星期五有鬼》全集，搞笑悬疑，多人小说剧",
+    "author": "嗨p下饭tin",
+    "tag": "搞笑/悬疑",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1FEyuBMEhB",
+    "title": "东北的邪乎事-屁屁球 700集全",
+    "author": "Thread丶",
+    "tag": "灵异/民间",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1zD4y147Q8",
+    "title": "【有声书】《阴阳通灵师》870集（已完结）",
+    "author": "账号已注销",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1fG4y1f7ih",
+    "title": "西北农村阴阳鬼事1-150",
+    "author": "晚上睡得更好",
+    "tag": "灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1zT411P7NG",
+    "title": "【有声鬼故事合集】午夜鬼事 演播：七十",
+    "author": "pznx",
+    "tag": "鬼故事",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1vX4y1i7JA",
+    "title": "【诡事旧案】鬼故事合集",
+    "author": "欧皇咸鱼本鱼",
+    "tag": "鬼故事",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1KNt16yEzJ",
+    "title": "有声书《民间故事》全集",
+    "author": "散人听书",
+    "tag": "民间故事",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1VZ4y1q79L",
+    "title": "三姥爷惊奇手札：老烟鬼",
+    "author": "王德发怪诞",
+    "tag": "民间怪谈",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1dch76WEjb",
+    "title": "有声小说《怪谈直播间》全集，恐怖灵异，多人小说剧",
+    "author": "嗨p下饭tin",
+    "tag": "恐怖/灵异",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1XdtW6FEnR",
+    "title": "有声小说《暮雨诡话》全集，短篇灵异恐怖故事",
+    "author": "B站大学府",
+    "tag": "灵异/恐怖",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1j5gD6wEbz",
+    "title": "多人有声小说 古风志怪 诡事丛生【已完结】",
+    "author": "耳朵听书",
+    "tag": "古风志怪",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1nUBHYPEDC",
+    "title": "【广播剧】道诡异仙 动漫火旺原著 精品广播剧 声娱文化 中式克苏鲁",
+    "author": "青山有声书",
+    "tag": "中式克苏鲁/广播剧",
+    "group": "A"
+  },
+  {
+    "bvid": "BV11Zq2YgE6e",
+    "title": "有声书《民间绝密档案》悬疑探险 播讲_十耳听书【完结】",
+    "author": "_唯见青山",
+    "tag": "悬疑/探险",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1ds4y117P8",
+    "title": "有声小说《中国真实灵异事件-绝密档案》第1集 恐怖鬼故事",
+    "author": "灵异微故事",
+    "tag": "灵异(仅第1集)",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1g5411m7BN",
+    "title": "酷我音乐 - 灵异事件簿 [301-500]",
+    "author": "misaka-0x0d",
+    "tag": "灵异电台(非本书)",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1f44y1V7NS",
+    "title": "酷我音乐 - 灵异事件簿 [1-100]",
+    "author": "misaka-0x0d",
+    "tag": "灵异电台(非本书)",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1sS4y1Y7Sy",
+    "title": "酷我音乐 - 灵异事件簿 [101-300]",
+    "author": "misaka-0x0d",
+    "tag": "灵异电台(非本书)",
+    "group": "A"
+  },
+  {
+    "bvid": "BV1n5QEB7E1P",
+    "title": "多人有声剧《斗罗大陆》唐家三少著（完结）",
+    "author": "石猫吖",
+    "tag": "玄幻",
+    "group": "B"
+  },
+  {
+    "bvid": "BV13Py3zLEgm",
+    "title": "有声书《灵域》全集（完结）多人精品有声剧",
+    "author": "柚子听书",
+    "tag": "玄幻",
+    "group": "B"
+  },
+  {
+    "bvid": "BV1QeokBEER8",
+    "title": "有声书《将夜》完整版全集，多人小说剧",
+    "author": "嗨p下饭tin",
+    "tag": "玄幻",
+    "group": "B"
+  },
+  {
+    "bvid": "BV1ofZwYWEWM",
+    "title": "小说剧《大奉打更人》全集，共1335集，多人有声剧",
+    "author": "道格有声宝藏",
+    "tag": "玄幻/探案",
+    "group": "B"
+  },
+  {
+    "bvid": "BV1KdUrY4Eqp",
+    "title": "精品有声书《重生之都市狂仙》(上)全集",
+    "author": "西瓜听书",
+    "tag": "都市/修仙",
+    "group": "B"
+  },
+  {
+    "bvid": "BV18GVQ6AEzW",
+    "title": "都市异能有声书《都市之奇妙医神》最新连载",
+    "author": "雪莱听书",
+    "tag": "都市/异能",
+    "group": "B"
+  },
+  {
+    "bvid": "BV1hg411U7Dm",
+    "title": "【有声书】庶女有毒",
+    "author": "有空听书",
+    "tag": "言情/宅斗",
+    "group": "B"
+  },
+  {
+    "bvid": "BV1wYGi66Epv",
+    "title": "重生权谋宅斗爽文《锦桐落花》已完结",
+    "author": "雪莱听书",
+    "tag": "言情/宅斗",
+    "group": "B"
+  },
+  {
+    "bvid": "BV1h4yGzEEFS",
+    "title": "多人有声书《两京十五日》",
+    "author": "银河有声书",
+    "tag": "历史/悬疑",
+    "group": "B"
+  },
+  {
+    "bvid": "BV1LWhE6tEui",
+    "title": "郭德纲单口相声《弥勒寺惊魂》全集 助眠",
+    "author": "哎呦-不错哦_-",
+    "tag": "单口相声",
+    "group": "B"
+  }
+];
+
+function curatedAlbum(entry) {
+  return {
+    id: entry.bvid,
+    name: entry.title,
+    artists: entry.author ? [{ name: entry.author }] : [],
+    description: entry.tag || undefined,
+  };
+}
+
+function curatedSections() {
+  const groups = [
+    { key: "A", title: t("Supernatural Mystery Folklore") },
+    { key: "B", title: t("Other Audiobooks") },
+  ];
+  return groups
+    .map((group) => ({
+      title: group.title,
+      albums: AUDIOBOOK_CATALOG.filter((entry) => entry.group === group.key).map(curatedAlbum),
+    }))
+    .filter((section) => section.albums.length > 0);
+}
+
+const shitouCache = new Map();
+const SHITOU_TTL = 5 * 60 * 1000;
+
+function shitouUrl(path) {
+  const u = String(path || "").trim().replace(/\\\//g, "/");
+  if (!u) return "";
+  if (/^https?:/i.test(u)) return u;
+  if (u.startsWith("//")) return `https:${u}`;
+  return u.startsWith("/") ? `${SHITOU_BASE}${u}` : u;
+}
+
+async function shitouText(path) {
+  const url = shitouUrl(path);
+  const cached = shitouCache.get(url);
+  if (cached && Date.now() - cached.at < SHITOU_TTL) return cached.text;
+  let last = "";
+  for (let i = 0; i < 3; i++) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": UA,
+          Referer: `${SHITOU_BASE}/`,
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "zh-CN,zh;q=0.9",
+        },
+      });
+      const text = await res.text();
+      if (res.status >= 500 || text.length < 200) {
+        last = `HTTP ${res.status}`;
+        await sleep(1500 * (i + 1));
+        continue;
+      }
+      if (!res.ok) throw fail("unavailable", `HTTP ${res.status}`);
+      shitouCache.set(url, { text, at: Date.now() });
+      if (shitouCache.size > 40) {
+        const oldest = [...shitouCache.entries()].sort((a, b) => a[1].at - b[1].at)[0];
+        if (oldest) shitouCache.delete(oldest[0]);
+      }
+      return text;
+    } catch (e) {
+      if (e?.code) throw e;
+      last = e?.message || String(e);
+      await sleep(1500 * (i + 1));
+    }
+  }
+  throw fail("unavailable", last || t("Couldn't load audiobook directory: try again later"));
+}
+
+function shitouAuthor(title) {
+  return clean((/作者[：:]\s*([^）)】]+)/.exec(title) || [])[1] || "");
+}
+
+function shitouLoadMeta(html) {
+  const attrs = (/\bid="loadMore"([^>]*)>/.exec(String(html || "")) || [])[1] || "";
+  return {
+    modId: (/data-mod-id="([^"]+)"/.exec(attrs) || [])[1] || "",
+    clsId: (/data-cls-id="([^"]+)"/.exec(attrs) || [])[1] || "",
+  };
+}
+
+function shitouApiCard(d) {
+  const title = clean(d?.title || "");
+  const name = title.replace(/（作者：[^）]*）/g, "").replace(/\s+/g, " ").trim();
+  return {
+    id: String(d?.id || ""),
+    name,
+    cover: shitouUrl(d?.img || ""),
+    cat: clean(d?.clsName || ""),
+    author: shitouAuthor(title),
+  };
+}
+
+async function shitouListCards(modId, clsId, pageNo) {
+  const body = query({ modId, clsId, pageNum: pageNo, keyword: "", addUid: "" });
+  const res = await fetch(`${SHITOU_BASE}/api/cms/list`, {
+    method: "POST",
+    headers: {
+      "User-Agent": UA,
+      Referer: `${SHITOU_BASE}${SHITOU_HOME}`,
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      "X-Requested-With": "XMLHttpRequest",
+      Accept: "application/json, text/plain, */*",
+    },
+    body,
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok || json?.code !== 0) throw fail("unavailable", json?.msg || `HTTP ${res.status}`);
+  return Array.isArray(json.data) ? json.data.map(shitouApiCard) : [];
+}
+
+function shitouCards(html, limit = 40) {
+  const out = [];
+  const seen = new Set();
+  const source = String(html || "");
+  const wrap =
+    /<div class="row posts-wrapper[\s\S]*?>([\s\S]*?)(?:<div class="infinite-scroll-action">|<div class="related-posts">)/.exec(source);
+  const list = wrap ? wrap[1] : source;
+  for (const m of list.matchAll(/<a\s+href="\/p\/([0-9]+)\.html"[^>]*title="([^"]*)"/g)) {
+    const id = m[1];
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const title = clean(m[2]);
+    if (!title) continue;
+    const around = list.slice(Math.max(0, m.index - 600), Math.min(list.length, m.index + 900));
+    const coverRaw =
+      (/data-original="([^"]+)"/.exec(around) || [])[1] || (/<img[^>]+src="([^"]+)"/.exec(around) || [])[1] || "";
+    const cat = clean((/<a href="\/list\/cls\/[0-9]+\.html"[^>]*>([^<]*)<\/a>/.exec(around) || [])[1] || "");
+    const author = shitouAuthor(title);
+    const name = title.replace(/（作者：[^）]*）/g, "").replace(/\s+/g, " ").trim();
+    out.push({ id, name, cover: shitouUrl(coverRaw), cat, author });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+function shitouAlbumInfo(html, id) {
+  const titleTag = clean((/<title>([\s\S]*?)<\/title>/i.exec(html) || [])[1] || "");
+  const book = titleTag.match(/《([^》]+)》/)?.[1] || clean(titleTag.split(" - ")[0]);
+  const author = shitouAuthor(titleTag);
+  const cat = clean((/【([^】]+)】/.exec(titleTag) || [])[1] || "");
+  const bvid =
+    (/player\.bilibili\.com\/player\.html\?[^"']*bvid=([A-Za-z0-9]+)/.exec(html) || [])[1] ||
+    (/bvid=([A-Za-z0-9]+)/.exec(html) || [])[1] ||
+    "";
+  const desc = clean((/<meta name="description" content="([^"]*)"/.exec(html) || [])[1] || "");
+  let cover = "";
+  for (const m of String(html).matchAll(/data-original="([^"]+)"/g)) {
+    const u = shitouUrl(m[1]);
+    if (/hdslb\.com|xmcdn\.com/i.test(u)) {
+      cover = u.split("@")[0];
+      break;
+    }
+  }
+  return { id, title: clean(book), author, cat, bvid, desc, cover };
+}
+
+function shitouCard(c) {
+  return {
+    id: `shitou:${c.id}`,
+    name: c.name,
+    imageUrl: image(c.cover),
+    artists: c.author ? [{ name: c.author }] : [],
+    description: c.cat || undefined,
+  };
+}
+
+async function shitouHome(pageNo = 1) {
+  const html = await shitouText(SHITOU_HOME);
+  const meta = shitouLoadMeta(html);
+  const cards =
+    pageNo > 1
+      ? await shitouListCards(meta.modId, meta.clsId || "10042", pageNo)
+      : shitouCards(html, 40);
+  const nextPage = cards.length >= SHITOU_PAGE_SIZE ? `audiobooks:${pageNo + 1}` : undefined;
+  const shitouSection = {
+    title: t("Shitou Directory"),
+    albums: cards.map(shitouCard),
+    links: nextPage ? [{ title: t("Next page"), page: nextPage }] : undefined,
+    ...(cards.length ? {} : { empty: t("No audiobooks yet") }),
+  };
+  return {
+    title: t("Audiobooks"),
+    subtitle:
+      pageNo > 1
+        ? t("Shitou page %d").replace("%d", String(pageNo))
+        : t("Audio books listed by Shitou; playback comes from Bilibili"),
+    sections: pageNo > 1 ? [shitouSection] : [...curatedSections(), shitouSection],
+  };
+}
+
+async function shitouCategory(tid, pageNo) {
+  const html = await shitouText(`/list/cls/${tid}.html` + (pageNo > 1 ? `?page=${pageNo}` : ""));
+  const cards = shitouCards(html, 40);
+  const term = clean((/<h1 class="term-title">([^<]*)<\/h1>/.exec(html) || [])[1] || "") || t("Audiobooks");
+  return {
+    title: term,
+    subtitle: t("Shitou page %d").replace("%d", String(pageNo)),
+    sections: [
+      {
+        title: term,
+        albums: cards.map(shitouCard),
+        links: cards.length >= SHITOU_PAGE_SIZE ? [{ title: t("Next page"), page: `cat:${tid}:${pageNo + 1}` }] : undefined,
+        ...(cards.length ? {} : { empty: t("No audiobooks in this category") }),
+      },
+    ],
+  };
+}
+
+async function getShitouAlbum(pid) {
+  const html = await shitouText(`/p/${pid}.html`);
+  const info = shitouAlbumInfo(html, pid);
+  if (!info.bvid) throw fail("unavailable", t("This page has no Bilibili video"));
+  const v = await view(info.bvid);
+  const tracks = partsOf(v);
+  const albumId = `shitou:${pid}`;
+  const album = {
+    id: albumId,
+    name: info.title || clean(v.title),
+    imageUrl: image(info.cover || v.pic),
+    artists: info.author ? [{ name: info.author }] : undefined,
+    description: [info.desc, t("Audiobook from Shitou; Bilibili video %s").replace("%s", info.bvid)].filter(Boolean).join("\n"),
+  };
+  for (const tr of tracks) tr.album = { ...tr.album, id: albumId, name: album.name, imageUrl: album.imageUrl, artists: album.artists };
+  return { album, tracks };
+}
+
 function seconds(v) {
   if (typeof v === "number") return v * 1000;
   if (typeof v !== "string" || !v) return 0;
@@ -717,6 +1461,11 @@ export async function browse({ page }) {
     return { title: t("Latest Videos"), subtitle: t("From who you follow, newest first"), sections: [{ tracks: await followingVideos(5) }] };
   }
   if (page === "saved") return savedPage();
+  if (page === "audiobooks") return shitouHome(1);
+  const shitouHomePage = /^audiobooks:(\d+)$/.exec(page);
+  if (shitouHomePage) return shitouHome(Number(shitouHomePage[1]) || 1);
+  const shitouCat = /^cat:(\d+):(\d+)$/.exec(page);
+  if (shitouCat) return shitouCategory(shitouCat[1], Number(shitouCat[2]) || 1);
   const folder = /^saved:fav:(\d+)$/.exec(page);
   if (folder) return savedFolderPage(folder[1]);
   throw fail("unavailable", t("no such page"));
@@ -767,6 +1516,8 @@ async function followings() {
 // artists (uploaders).
 
 async function getAlbum({ id }) {
+  const shitou = /^shitou:(\d+)$/.exec(id);
+  if (shitou) return getShitouAlbum(shitou[1]);
   const shelf = /^(season|series):(\d+):(\d+)$/.exec(id);
   if (shelf) return getShelf(shelf[1], shelf[2], shelf[3]);
   const v = await view(id);

@@ -1,7 +1,7 @@
 {
   "id": "bilibili",
   "name": "Bilibili",
-  "version": "0.5.0",
+  "version": "0.6.4",
   "minAppVersion": "0.1.21",
   "main": "index.js",
   "playback": "stream",
@@ -14,7 +14,10 @@
       "*.bilivideo.com",
       "*.bilivideo.cn",
       "*.hdslb.com",
-      "aisubtitle.hdslb.com"
+      "aisubtitle.hdslb.com",
+      "www.shitou.club",
+      "*.shitou.club",
+      "*.xmcdn.com"
     ],
     "process": [
       "ffmpeg",
@@ -33,6 +36,11 @@
   "navigation": [
     {
       "builtin": "home"
+    },
+    {
+      "title": "Audiobooks",
+      "page": "audiobooks",
+      "icon": "playlist"
     },
     {
       "title": "Charts",

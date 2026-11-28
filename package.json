@@ -1,12 +1,12 @@
 {
   "name": "mygo-music-bilibili",
-  "version": "0.5.0",
+  "version": "0.6.4",
   "private": true,
   "type": "module",
   "license": "MIT",
   "scripts": {
     "check": "node --check index.js",
-    "test": "node --experimental-vm-modules tests/signin.mjs && node --experimental-vm-modules tests/lyrics.mjs && node --experimental-vm-modules tests/stream.mjs && node --experimental-vm-modules tests/playlists.mjs && node --experimental-vm-modules tests/saved.mjs",
+    "test": "node --experimental-vm-modules tests/signin.mjs && node --experimental-vm-modules tests/lyrics.mjs && node --experimental-vm-modules tests/stream.mjs && node --experimental-vm-modules tests/playlists.mjs && node --experimental-vm-modules tests/saved.mjs && node --experimental-vm-modules tests/audiobooks.mjs",
     "test:live": "node --experimental-vm-modules tests/live.mjs && node --experimental-vm-modules tests/paging.mjs",
     "test:signed-in": "node --experimental-vm-modules tests/subtitles.mjs"
   },
